@@ -1,0 +1,3 @@
+safety message bot test
+doesnotexist
+test spam
