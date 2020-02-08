@@ -2,10 +2,17 @@
 DONE BY: CHIN CLEMENT
 
 This program automatically sends daily safety reminders to a Whatsapp group of my choosing
+The groups to send to are stored in a text file called 'safety_messages_groups.txt'
 The safety messages are stored in a text file called 'safety_messages.txt'
 The safety quotes are stored in a text file called 'safety_quotes.txt'
+The config file has all the variables that we can change, stored in 'config.py'
+
+// TODO
+1. Telegram bot to add custom text to the back of the script (safety_message_urgent.txt)
+2. Add categories to the safety messages and quotes that we randomise (dict, tagging)
 """
 
+from safety_message_bot_supporting_funcs import *
 import sys
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
@@ -15,27 +22,13 @@ import random
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
-PATH_TO_CHROMEDRIVER = r'.\chrome_webdriver\chromedriver.exe'
-PATH_TO_SAFETY_MESSSAGES = r'.\safety_messages.txt'
-PATH_TO_SAFETY_QUOTES = r'.\safety_quotes.txt'
-PATH_TO_GROUP_NAMES = r'.\safety_message_groups.txt'
-MSG_BOX_CLASS_NAME = '_3u328'
-SEND_BUTTON_CLASS_NAME = '_3M-N-'
-FULL_SAFETY_MSG = '''Safety Message of the day ({})
-
-_{}_
-
-{}'''
-SECONDS_TO_NEXT_DAY_SAME_TIME = 60 * 60 * 24
-# in 24HR format
-TIME_TO_SEND_SAFETY_MESSAGE = '0530'
-
-# for testing
-# TIME_TO_SEND_SAFETY_MESSAGE = '1818'
-
 
 def whatsapp_bot():
-    """This function opens a browser and sends a safety message when the conditions are correct"""
+    """
+    This function opens a browser and waits for user to scan QR code and send an empty string
+    here to continue the program.
+    Then it will send a safety message to the different groups of our choosing, when the conditions are met (time)
+    """
     driver = webdriver.Chrome(PATH_TO_CHROMEDRIVER)
     print 'Safety Message WhatsApp Bot Started.'
     print 'Scan QR code.'
@@ -46,24 +39,25 @@ def whatsapp_bot():
     raw_input('Type anything after scanning QR code > ')
 
     while True:
-        safety_messages_lst = get_safety_messages()
-        safety_quotes_lst = get_safety_quotes()
-        curr_hour_min = datetime.now().strftime('%H%M')
-        curr_date = datetime.now().strftime('%d%m%Y')
-        safety_msg = safety_messages_lst[random.randint(0, len(safety_messages_lst) - 1)]
-        safety_quotes = safety_quotes_lst[random.randint(0, len(safety_quotes_lst) - 1)]
-        full_safety_msg = FULL_SAFETY_MSG.format(curr_date, safety_quotes, safety_msg)
-        groups_lst = get_groups()
 
-        # Do action every minute
+        curr_hour_min = datetime.now().strftime('%H%M')
+
         if curr_hour_min == TIME_TO_SEND_SAFETY_MESSAGE:
+
+            safety_messages_lst = get_safety_messages()
+            safety_quotes_lst = get_safety_quotes()
+            curr_date = datetime.now().strftime('%d%m%Y')
+            safety_msg = safety_messages_lst[random.randint(0, len(safety_messages_lst) - 1)]
+            safety_quotes = safety_quotes_lst[random.randint(0, len(safety_quotes_lst) - 1)]
+            full_safety_msg = FULL_SAFETY_MSG.format(curr_date, safety_quotes, safety_msg)
+            groups_lst = get_groups()
 
             # send to all the groups that can be found in the list
             for group in groups_lst:
 
                 # Finds the target group
                 group = driver.find_elements_by_xpath('//span[contains(text(), "{}")]'.format(group))
-                
+
                 # To catch if the group does not exist, move on to the next group
                 if not len(group) > 0:
                     continue
@@ -87,26 +81,9 @@ def whatsapp_bot():
             # sleep till its 30 seconds before we need to send another safety message (the next day)
             sleep(SECONDS_TO_NEXT_DAY_SAME_TIME - 30)
 
-
-def get_groups():
-    """Returns a list of groups in the safety_message_groups.txt file"""
-    with open(PATH_TO_GROUP_NAMES, 'rb') as f:
-        groups_lst = [msg.rstrip('\r\n') for msg in f]
-    return groups_lst
-
-
-def get_safety_quotes():
-    """Returns a list of safety quotes in the safety_quotes.txt file"""
-    with open(PATH_TO_SAFETY_QUOTES, 'rb') as f:
-        safety_quotes_lst = [msg.rstrip('\r\n') for msg in f]
-    return safety_quotes_lst
-
-
-def get_safety_messages():
-    """Returns a list of safety messages in the safety_messages.txt file"""
-    with open(PATH_TO_SAFETY_MESSSAGES, 'rb') as f:
-        safety_messages_lst = [msg.rstrip('\r\n') for msg in f]
-    return safety_messages_lst
+        # Does not keep trying to get its current time and waste resources
+        # Tries every 30s
+        sleep(35)
 
 
 def main():
